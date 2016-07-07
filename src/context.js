@@ -1,6 +1,7 @@
 import { ALLOW, DENY, CATCH_ALL, CATCH_ALL_CIDR } from './constants';
 import { isEmpty, isString, memoize } from 'lodash';
 import ip from 'ip';
+import pathToRegexp from 'path-to-regexp';
 
 /* A rule objec that allows access to all addresses */
 const ACCEPT_ALL_RULE = { allow: true, subnet: ip.cidrSubnet(CATCH_ALL_CIDR) };
@@ -14,6 +15,7 @@ export default class Context {
    * Constructor
    */
   constructor() {
+    this.patterns = [];
     this.rules = {};
     this.lastAddedResources = [];
   }
@@ -29,7 +31,11 @@ export default class Context {
     if (this.lastAddedResources.some((resource) => !isEmpty(this.rules[resource]))) {
       this.lastAddedResources = [];
     }
-    const resource = path.toString();
+    const pattern = pathToRegexp(path);
+    const resource = (pattern.keys.length ? pattern : path).toString();
+    if (pattern.keys.length) {
+      this.patterns.push(pattern);
+    }
     this.validateDuplicateResource(resource);
     this.lastAddedResources.push(resource);
     this.rules[resource] = this.rules[resource] || [];
@@ -87,7 +93,6 @@ export default class Context {
    * @private
    */
   isAllowed(resource, addr) {
-    if (!(resource in this.rules)) { return true; }
     const resourceRules = this.getResourceRules(resource);
     const applicableRules = resourceRules.filter(this.applicable(addr));
     const mostSpecificRule = this.getMostSpecificRule(applicableRules);
@@ -101,11 +106,20 @@ export default class Context {
    * @private
    */
   getResourceRules(resource) {
-    return this.rules[resource].map((rule) => {
-      const subnet = ip.cidrSubnet(rule.cidr);
-      const allow = rule.type === ALLOW;
-      return { subnet, allow };
-    });
+    return this.patterns
+      .filter((pattern) => pattern.test(resource))
+      .concat(resource)
+      .reduce(
+        (rules, key) => {
+          if (key in this.rules) {
+            return rules.concat(this.rules[key].map((rule) => ({
+              subnet: ip.cidrSubnet(rule.cidr),
+              allow: rule.type === ALLOW
+            })));
+          }
+          return rules;
+        },
+        []);
   }
 
   /**
