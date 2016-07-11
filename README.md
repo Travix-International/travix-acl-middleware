@@ -39,6 +39,8 @@ app.use(acl({
 
 ```
 
+> Note: express-style path strings are also supported, see [path-to-regexp](https://www.npmjs.com/search?q=path-to-regexp) repository for more info.
+
 #### Redefine Http Status code returned
 
 By default, any blocked requests will return status code `403 FORBIDDEN`. You can redefine it using the `options.respondWith` property.  For instance:
