@@ -28,6 +28,10 @@ describe('context', () => {
     context.forResource('/resource/path');
   });
 
+  it('should be able to add rules for subset of resources', () => {
+    context.forResource('/resource/path/*');
+  });
+
   it('should accept a string object as resource', () => {
     // eslint-disable-next-line no-new-wrappers
     expect(() => context.forResource(new String('/resource/path'))).not.to.throw();
@@ -50,7 +54,8 @@ describe('context', () => {
     expect(() => {
       context.forResource('/protected/resource/1')
              .forResource('/protected/resource/2')
-             .forResource('/protected/resource/3');
+             .forResource('/protected/resource/3')
+             .forResource('/protected/resource/4/*');
     }).not.to.throw();
   });
 
@@ -58,6 +63,13 @@ describe('context', () => {
     expect(() => {
       context.forResource('/resource')
              .forResource('/resource');
+    }).to.throw(Error);
+  });
+
+  it('should fail to add duplicate subset of resources', () => {
+    expect(() => {
+      context.forResource('/resource/*')
+             .forResource('/resource/*');
     }).to.throw(Error);
   });
 
@@ -82,13 +94,19 @@ describe('context', () => {
     });
   });
 
-  it('should deny all with deny all rule', () => {
+  it('should deny all with deny all rule access to a single resource', () => {
     const isAllowed = context.forResource('/path').deny('*').build();
     const allowed = isAllowed('/path', ip.address());
     expect(allowed).to.be.false;
   });
 
-  it('should allow all addresses of given ranges', () => {
+  it('should deny all with deny all rule access to subset of resources', () => {
+    const isAllowed = context.forResource('/path/*').deny('*').build();
+    expect(isAllowed('/path/1', ip.address())).to.be.false;
+    expect(isAllowed('/path/1/2', ip.address())).to.be.false;
+  });
+
+  it('should allow all addresses of given ranges access to a single resource', () => {
     const allowedRanges = ['192.168.0.1/24', '172.10.154.100/25', '127.0.0.1/32'];
     context.forResource('/path').deny('*');
     allowedRanges.forEach((range) => {
@@ -104,7 +122,24 @@ describe('context', () => {
     });
   });
 
-  it('should deny all addresses of given ranges', () => {
+  it('should allow all addresses of given ranges access to subset of resources', () => {
+    const allowedRanges = ['192.168.0.1/24', '172.10.154.100/25', '127.0.0.1/32'];
+    context.forResource('/path/*').deny('*');
+    allowedRanges.forEach((range) => {
+      context.allow(range);
+    });
+
+    const isAllowed = context.build();
+
+    allowedRanges.forEach((range) => {
+      for (const addr of allInRange(range)) {
+        expect(isAllowed('/path/1', addr)).to.be.true;
+        expect(isAllowed('/path/1/2', addr)).to.be.true;
+      }
+    });
+  });
+
+  it('should deny all addresses of given ranges access to a single resource', () => {
     const allowedRanges = ['192.168.0.1/24', '172.10.154.100/25', '127.0.0.1/32'];
     context.forResource('/path').allow('*');
     allowedRanges.forEach((range) => {
@@ -120,7 +155,24 @@ describe('context', () => {
     });
   });
 
-  it('should allow multiple nested ranges', () => {
+  it('should deny all addresses of given ranges access to subset of resources', () => {
+    const allowedRanges = ['192.168.0.1/24', '172.10.154.100/25', '127.0.0.1/32'];
+    context.forResource('/path/*').allow('*');
+    allowedRanges.forEach((range) => {
+      context.deny(range);
+    });
+
+    const isAllowed = context.build();
+
+    allowedRanges.forEach((range) => {
+      for (const addr of allInRange(range)) {
+        expect(isAllowed('/path/1', addr)).to.be.false;
+        expect(isAllowed('/path/1/2', addr)).to.be.false;
+      }
+    });
+  });
+
+  it('should allow multiple nested ranges access to a single resource', () => {
     const isAllowed = context
       .forResource('/path')
       .deny('*')
@@ -132,5 +184,24 @@ describe('context', () => {
     expect(isAllowed('/path', '192.168.0.127')).to.be.false;
     expect(isAllowed('/path', '192.168.0.128')).to.be.true;
     expect(isAllowed('/path', '192.168.0.254')).to.be.true;
+  });
+
+  it('should allow multiple nested ranges access to subset of resources', () => {
+    const isAllowed = context
+      .forResource('/path/*')
+      .deny('*')
+      .allow('192.168.0.1/24') // 192.168.0.1 to 192.168.0.255
+      .deny('192.168.0.1/25')  // 192.168.0.1 to 192.168.0.127
+      .build();
+    expect(isAllowed('/path/1', '104.16.39.59')).to.be.false;
+    expect(isAllowed('/path/1/2', '104.16.39.59')).to.be.false;
+    expect(isAllowed('/path/1', '192.168.0.1')).to.be.false;
+    expect(isAllowed('/path/1/2', '192.168.0.1')).to.be.false;
+    expect(isAllowed('/path/1', '192.168.0.127')).to.be.false;
+    expect(isAllowed('/path/1/2', '192.168.0.127')).to.be.false;
+    expect(isAllowed('/path/1', '192.168.0.128')).to.be.true;
+    expect(isAllowed('/path/1/2', '192.168.0.128')).to.be.true;
+    expect(isAllowed('/path/1', '192.168.0.254')).to.be.true;
+    expect(isAllowed('/path/1/2', '192.168.0.254')).to.be.true;
   });
 });
