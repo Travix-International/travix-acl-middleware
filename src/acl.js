@@ -5,12 +5,16 @@ import { FORBIDDEN, X_FORWARDED_FOR_HEADER } from './constants';
  * Produces an ACL middleware component.
  *
  * @param  {Object}          [options]                 options object
+ * @param  {Object}          [options.allow]           predefined set of permissive rules: "*" or array of [resource, cidr] pairs where resource and cidr can be arrays
  * @param  {Function}        [options.configure]       a function that accepts a context and uses it to configure the rules
+ * @param  {Object}          [options.deny]            predefined set of restrictive rules: "*" or array of [resource, cidr] pairs where resource and cidr can be arrays
  * @param  {Number|Function} [options.respondWith]     either a function that returns an http status code or a number literal representing the status code; default: 403
  * @param  {handleResponse}  [options.handleResponse]  a function to handle an forbidden request
  * @return {Function}   ACL middleware
  */
 export default function acl(options) {
+  const ctx = new Context(options);
+
   const {
     configure = function configure() { },
     respondWith = FORBIDDEN,
@@ -20,7 +24,6 @@ export default function acl(options) {
     }
   } = options;
 
-  const ctx = new Context();
   configure(ctx);
   const isAllowed = ctx.build();
 

@@ -1,5 +1,5 @@
 import { ALLOW, DENY, CATCH_ALL, CATCH_ALL_CIDR } from './constants';
-import { isEmpty, isString, memoize } from 'lodash';
+import { isArray, isEmpty, isString, memoize } from 'lodash';
 import ip from 'ip';
 import pathToRegexp from 'path-to-regexp';
 
@@ -14,10 +14,40 @@ export default class Context {
   /**
    * Constructor
    */
-  constructor() {
+  constructor(config = {}) {
     this.patterns = [];
     this.rules = {};
     this.lastAddedResources = [];
+
+    let { allow = [], deny = [] } = config;
+    if (allow === CATCH_ALL) {
+      allow = [[CATCH_ALL, CATCH_ALL]];
+    } else if (!isArray(allow)) {
+      throw new Error('Allow section has to be an array');
+    }
+    if (deny === CATCH_ALL) {
+      deny = [[CATCH_ALL, CATCH_ALL]];
+    } else if (!isArray(deny)) {
+      throw new Error('Deny section has to be an array');
+    }
+
+    const add = (ruleType, pairs) => {
+      for (const pair of pairs) {
+        if (!isArray(pair)) {
+          throw new Error('Rule has to be an array');
+        }
+        const [paths, cidrs] = pair;
+        for (const path of isArray(paths) ? paths : [paths]) {
+          this.forResource(path);
+        }
+        for (const cidr of isArray(cidrs) ? cidrs : [cidrs]) {
+          this.addRule(ruleType, cidr);
+        }
+      }
+    }
+
+    add(ALLOW, allow);
+    add(DENY, deny);
   }
 
   /**
@@ -27,11 +57,12 @@ export default class Context {
    * @chainable
    */
   forResource(path) {
-    this.validatePath(path);
+    path = this.validatePath(path);
     if (this.lastAddedResources.some((resource) => !isEmpty(this.rules[resource]))) {
       this.lastAddedResources = [];
     }
     const pattern = pathToRegexp(path);
+    pattern.length = path.length;
     const resource = (pattern.keys.length ? pattern : path).toString();
     if (pattern.keys.length) {
       this.patterns.push(pattern);
@@ -82,6 +113,7 @@ export default class Context {
    * @return {Function}  function used to evaluate rules
    */
   build() {
+    this.patterns.sort(pattern => pattern.length);
     return memoize(this.isAllowed.bind(this), (...args) => args.splice(0, 2).join(' '));
   }
 
@@ -156,6 +188,7 @@ export default class Context {
     if (!isString(path)) {
       throw new Error('Path has to be a valid string value');
     }
+    return path;
   }
 
   /**

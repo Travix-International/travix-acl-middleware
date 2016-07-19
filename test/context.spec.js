@@ -94,19 +94,36 @@ describe('context', () => {
     });
   });
 
-  it('should deny all with deny all rule access to a single resource', () => {
+  it('should be able to add rules from config', () => {
+    expect(() => new Context({
+      allow: [
+        ['/protected/resource/1', '*'],
+        ['*', '127.0.0.1/32'],
+        [['/protected/resource/2', '/protected/resource/3'], '192.168.0.0/24'],
+        ['/protected/resource/4', ['192.168.0.0/24', '192.168.1.0/24']]
+      ],
+      deny: '*'
+    })).not.to.throw(Error);
+  });
+
+  it('should fail if config is malformed', () => {
+    expect(() => new Context({ allow: {} })).to.throw(Error);
+    expect(() => new Context({ allow: [{}] })).to.throw(Error);
+  });
+
+  it('should deny access to some resource', () => {
     const isAllowed = context.forResource('/path').deny('*').build();
     const allowed = isAllowed('/path', ip.address());
     expect(allowed).to.be.false;
   });
 
-  it('should deny all with deny all rule access to subset of resources', () => {
+  it('should deny access subset of resources', () => {
     const isAllowed = context.forResource('/path/*').deny('*').build();
     expect(isAllowed('/path/1', ip.address())).to.be.false;
     expect(isAllowed('/path/1/2', ip.address())).to.be.false;
   });
 
-  it('should allow all addresses of given ranges access to a single resource', () => {
+  it('should allow access to some resource for all addresses of given ranges', () => {
     const allowedRanges = ['192.168.0.1/24', '172.10.154.100/25', '127.0.0.1/32'];
     context.forResource('/path').deny('*');
     allowedRanges.forEach((range) => {
@@ -122,7 +139,7 @@ describe('context', () => {
     });
   });
 
-  it('should allow all addresses of given ranges access to subset of resources', () => {
+  it('should allow access to subset of resources for all addresses of given ranges', () => {
     const allowedRanges = ['192.168.0.1/24', '172.10.154.100/25', '127.0.0.1/32'];
     context.forResource('/path/*').deny('*');
     allowedRanges.forEach((range) => {
@@ -139,7 +156,7 @@ describe('context', () => {
     });
   });
 
-  it('should deny all addresses of given ranges access to a single resource', () => {
+  it('should deny access to some resource for all addresses of given ranges', () => {
     const allowedRanges = ['192.168.0.1/24', '172.10.154.100/25', '127.0.0.1/32'];
     context.forResource('/path').allow('*');
     allowedRanges.forEach((range) => {
@@ -155,7 +172,7 @@ describe('context', () => {
     });
   });
 
-  it('should deny all addresses of given ranges access to subset of resources', () => {
+  it('should deny access to subset of resources for all addresses of given ranges', () => {
     const allowedRanges = ['192.168.0.1/24', '172.10.154.100/25', '127.0.0.1/32'];
     context.forResource('/path/*').allow('*');
     allowedRanges.forEach((range) => {
@@ -172,7 +189,7 @@ describe('context', () => {
     });
   });
 
-  it('should allow multiple nested ranges access to a single resource', () => {
+  it('should allow access to some resource for multiple nested ranges', () => {
     const isAllowed = context
       .forResource('/path')
       .deny('*')
@@ -186,7 +203,7 @@ describe('context', () => {
     expect(isAllowed('/path', '192.168.0.254')).to.be.true;
   });
 
-  it('should allow multiple nested ranges access to subset of resources', () => {
+  it('should allow access to subset of resources for multiple nested ranges', () => {
     const isAllowed = context
       .forResource('/path/*')
       .deny('*')
