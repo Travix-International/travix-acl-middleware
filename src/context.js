@@ -15,16 +15,20 @@ export default class Context {
    * Constructor
    * @param  {Array} [rules] predefined array of rules, each rule is an object of the following shape: { resource: '' | [], allow: '' | [], deny: '' | [] }
    */
-  constructor(rules = []) {
-    if (!isArray(rules)) {
-      throw new Error('Rules have to be an array');
-    }
-
+  constructor(predefinedRules = []) {
     this.patterns = [];
     this.rules = {};
     this.lastAddedResources = [];
 
-    for (const rule of rules) {
+    this.loadPredefinedRules(predefinedRules);
+  }
+
+  loadPredefinedRules(predefinedRules) {
+    if (!isArray(predefinedRules)) {
+      throw new Error('Rules have to be an array');
+    }
+
+    for (const rule of predefinedRules) {
       if (!isPlainObject(rule)) {
         throw new Error('Rule has to be a plain object');
       }

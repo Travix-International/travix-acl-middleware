@@ -37,7 +37,7 @@ app.use(acl({
            .deny(BAD_IP);
   },
   // optional preconfigured rules
-  rules: [
+  predefinedRules: [
     {
       resource: '/protected/resource/3',
       allow: '192.168.0.1/24',
@@ -64,7 +64,7 @@ app.use(acl({
   configure() {
     ...
   },
-  rules: [...],
+  predefinedRules: [...],
   respondWith: 404
 }));
 
@@ -77,7 +77,7 @@ app.use(acl({
   configure() {
     ...
   },
-  rules: [...],
+  predefinedRules: [...],
   respondWith(req) {
     if (req.path === '/health_check') {
       return 404;
@@ -98,7 +98,7 @@ app.use(acl({
   configure() {
     ...
   },
-  rules: [...],
+  predefinedRules: [...],
   handleResponse(res, statusCode) {
      res.status(statusCode)
         .send("We're sorry, you don't have access to the page you requested. Please go back to the homepage");

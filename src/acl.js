@@ -15,14 +15,14 @@ export default function acl(options) {
   const {
     configure = function configure() { },
     respondWith = FORBIDDEN,
-    rules = [],
+    predefinedRules = [],
     handleResponse = function handleResponse(res, statusCode) {
       res.status(statusCode);
       res.end();
     }
   } = options;
 
-  const ctx = new Context(rules);
+  const ctx = new Context(predefinedRules);
 
   configure(ctx);
   const isAllowed = ctx.build();
