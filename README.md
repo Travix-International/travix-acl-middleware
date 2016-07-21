@@ -13,6 +13,7 @@ import acl from 'acl';
 
 const app = express();
 app.use(acl({
+  // optional configuration function
   configure(context) {
     // allow health check endpoint to be accessible only from localhost
     context.forResource('/health_check')
@@ -34,7 +35,20 @@ app.use(acl({
     context.forResource('/')
            .allow('*')
            .deny(BAD_IP);
-  }
+  },
+  // optional preconfigured rules
+  rules: [
+    {
+      resource: '/protected/resource/3',
+      allow: '192.168.0.1/24',
+      deny: '*'
+    },
+    {
+      resource: ['/protected/resource/4', '/protected/resource/5'],
+      allow: '*',
+      deny: ['192.168.0.1/24', '192.168.1.1/24']
+    }
+  ]
 }));
 
 ```
@@ -50,6 +64,7 @@ app.use(acl({
   configure() {
     ...
   },
+  rules: [...],
   respondWith: 404
 }));
 
@@ -62,6 +77,7 @@ app.use(acl({
   configure() {
     ...
   },
+  rules: [...],
   respondWith(req) {
     if (req.path === '/health_check') {
       return 404;
@@ -82,6 +98,7 @@ app.use(acl({
   configure() {
     ...
   },
+  rules: [...],
   handleResponse(res, statusCode) {
      res.status(statusCode)
         .send("We're sorry, you don't have access to the page you requested. Please go back to the homepage");

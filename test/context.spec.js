@@ -95,20 +95,32 @@ describe('context', () => {
   });
 
   it('should be able to add rules from config', () => {
-    expect(() => new Context({
-      allow: [
-        ['/protected/resource/1', '*'],
-        ['*', '127.0.0.1/32'],
-        [['/protected/resource/2', '/protected/resource/3'], '192.168.0.0/24'],
-        ['/protected/resource/4', ['192.168.0.0/24', '192.168.1.0/24']]
-      ],
-      deny: '*'
-    })).not.to.throw(Error);
+    expect(() => new Context([
+      {
+        resource: '*',
+        allow: '127.0.0.1/32',
+        deny: '*'
+      },
+      {
+        resource: '/protected/resource/1',
+        allow: '*'
+      },
+      {
+        resource: ['/protected/resource/2', '/protected/resource/3'],
+        allow: '192.168.0.0/24'
+      },
+      {
+        resource: '/protected/resource/4',
+        allow: ['192.168.0.0/24', '192.168.1.0/24']
+      }
+    ])).not.to.throw(Error);
   });
 
   it('should fail if config is malformed', () => {
-    expect(() => new Context({ allow: {} })).to.throw(Error);
-    expect(() => new Context({ allow: [{}] })).to.throw(Error);
+    expect(() => new Context({})).to.throw(Error);
+    expect(() => new Context([{}])).to.throw(Error);
+    expect(() => new Context([{ allow: '*' }])).to.throw(Error);
+    expect(() => new Context([{ resource: '*' }])).to.throw(Error);
   });
 
   it('should deny access to some resource', () => {

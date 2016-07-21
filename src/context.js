@@ -1,5 +1,5 @@
 import { ALLOW, DENY, CATCH_ALL, CATCH_ALL_CIDR } from './constants';
-import { isArray, isEmpty, isString, memoize } from 'lodash';
+import { isArray, isEmpty, isPlainObject, isString, memoize } from 'lodash';
 import ip from 'ip';
 import pathToRegexp from 'path-to-regexp';
 
@@ -13,41 +13,41 @@ export default class Context {
 
   /**
    * Constructor
+   * @param  {Array} [rules] predefined array of rules, each rule is an object of the following shape: { resource: '' | [], allow: '' | [], deny: '' | [] }
    */
-  constructor(config = {}) {
+  constructor(rules = []) {
+    if (!isArray(rules)) {
+      throw new Error('Rules have to be an array');
+    }
+
     this.patterns = [];
     this.rules = {};
     this.lastAddedResources = [];
 
-    let { allow = [], deny = [] } = config;
-    if (allow === CATCH_ALL) {
-      allow = [[CATCH_ALL, CATCH_ALL]];
-    } else if (!isArray(allow)) {
-      throw new Error('Allow section has to be an array');
-    }
-    if (deny === CATCH_ALL) {
-      deny = [[CATCH_ALL, CATCH_ALL]];
-    } else if (!isArray(deny)) {
-      throw new Error('Deny section has to be an array');
-    }
-
-    const add = (ruleType, pairs) => {
-      for (const pair of pairs) {
-        if (!isArray(pair)) {
-          throw new Error('Rule has to be an array');
-        }
-        const [paths, cidrs] = pair;
-        for (const path of isArray(paths) ? paths : [paths]) {
-          this.forResource(path);
-        }
-        for (const cidr of isArray(cidrs) ? cidrs : [cidrs]) {
-          this.addRule(ruleType, cidr);
-        }
+    for (const rule of rules) {
+      if (!isPlainObject(rule)) {
+        throw new Error('Rule has to be a plain object');
+      }
+      let { allow = [], deny = [], resource } = rule;
+      resource = isArray(resource) ? resource : [resource];
+      if (!resource.length) {
+        throw new Error('Rule has to have a resource');
+      }
+      allow = isArray(allow) ? allow : [allow];
+      deny = isArray(deny) ? deny : [deny];
+      if (!allow.length && !deny.length) {
+        throw new Error('Rule has to have at least one of "allow" or "deny" lists');
+      }
+      for (const path of resource) {
+        this.forResource(path);
+      }
+      for (const cidr of deny) {
+        this.deny(cidr);
+      }
+      for (const cidr of allow) {
+        this.allow(cidr);
       }
     }
-
-    add(ALLOW, allow);
-    add(DENY, deny);
   }
 
   /**
